@@ -1,0 +1,46 @@
+name: Tijori Quarterly Results Bot
+
+on:
+  schedule:
+    - cron: '30 0 * * *'    # 6:00 AM IST
+    - cron: '30 12 * * *'   # 6:00 PM IST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright Chromium
+        run: |
+          playwright install chromium
+          playwright install-deps
+
+      - name: Run Tijori scraper
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          WATCHLIST:          ${{ secrets.WATCHLIST }}
+        run: python tijori_scraper.py
+
+      - name: Commit updated known results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/tijori_known.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update known results [skip ci]"
+          git push
